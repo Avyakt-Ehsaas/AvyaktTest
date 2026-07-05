@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Playlist {
+  id                       String          @id @default(uuid())
+  title                    String
+  description              String?
+  coverImageUrl            String?
+  totalAudios              Int             @default(0)
+  estimatedDurationMinutes Int             @default(0)
+  isActive                 Boolean         @default(true)
+
+  audios                   PlaylistAudio[]
+  progress                 UserPlaylistProgress[]
+
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  @@map("playlists")
+}
+
+model PlaylistAudio {
+  id              String   @id @default(uuid())
+  playlistId      String
+
+  title           String
+  description     String?
+  audioUrl        String
+  thumbnailUrl    String?
+  durationSeconds Int?
+  audioOrder      Int
+  isActive        Boolean  @default(true)
+
+  playlist        Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  progress        UserPlaylistProgress[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("playlist_audios")
+}
+
+model UserPlaylistProgress {
+  id                    String   @id @default(uuid())
+
+  userId                String?
+  sessionId             String?
+
+  playlistId            String
+  audioId               String
+
+  isStarted             Boolean  @default(false)
+  isCompleted           Boolean  @default(false)
+
+  playedDurationSeconds Int      @default(0)
+  completionPercentage  Int      @default(0)
+
+  startedAt             DateTime?
+  completedAt           DateTime?
+  lastPlayedAt          DateTime?
+
+  playlist              Playlist      @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  audio                 PlaylistAudio @relation(fields: [audioId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([sessionId, audioId])
+  @@map("user_playlist_progress")
+}
