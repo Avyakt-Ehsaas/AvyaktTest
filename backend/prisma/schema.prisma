@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
 }
 
+// Existing playlist tables (kept intact from initial commit)
 model Playlist {
   id                       String          @id @default(uuid())
   title                    String
@@ -72,4 +73,154 @@ model UserPlaylistProgress {
 
   @@unique([sessionId, audioId])
   @@map("user_playlist_progress")
+}
+
+// ---------------------------------------------------------------------------
+// Attention Reset Protocol — PVT test flow
+// See PDF spec: Sections 1–4, 6.4, 11.3
+// ---------------------------------------------------------------------------
+
+enum TestContext {
+  talk
+  stall
+}
+
+enum TestPhase {
+  pre
+  post
+}
+
+enum StudyArm {
+  A
+  B
+}
+
+enum SessionStatus {
+  completed
+  interrupted
+  in_progress
+}
+
+enum CheckInSource {
+  test
+  meditation
+}
+
+model Participant {
+  id            String       @id @default(uuid())
+  context       TestContext
+
+  // Consent booleans stored individually (spec 11.3 — never collapse into single flag)
+  consentDataUse         Boolean @default(false)
+  consentScoreDisplay    Boolean @default(false)
+  consentAnonAggregate   Boolean @default(false)
+  consentFutureContact   Boolean @default(false)
+
+  // Self-report contact fields
+  name          String
+  email         String
+  whatsapp      String
+  company       String
+  role          String?
+  age           Int?
+
+  // Three diagnostic questions stored as their button-group answers
+  diagnosticSleep    String?
+  diagnosticFocus    String?
+  diagnosticStress   String?
+
+  // Study opt-in (stall only)
+  studyOptedIn  Boolean      @default(false)
+  studyArm      StudyArm?
+
+  sessions      TestSession[]
+  checkIns      StateCheckIn[]
+  guided        GuidedSession[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("participants")
+}
+
+model TestSession {
+  id              String        @id @default(uuid())
+  participantId   String
+  phase           TestPhase
+  context         TestContext
+  durationSeconds Int
+
+  // Aggregate metrics
+  medianRt        Float?
+  meanRt          Float?
+  cv              Float?          // coefficient of variation
+  lapseCount      Int             @default(0)
+  falseStartCount Int             @default(0)
+  validTrialCount Int             @default(0)
+  totalTrialCount Int             @default(0)
+
+  status          SessionStatus   @default(in_progress)
+
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+
+  participant     Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  trials          TestTrial[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([participantId, phase])
+  @@map("test_sessions")
+}
+
+model TestTrial {
+  id                String       @id @default(uuid())
+  sessionId         String
+
+  trialIndex        Int
+  isiMs             Int          // scheduled inter-stimulus interval (1000–4000)
+  stimulusOnsetMs   Float?       // ms from test start when stimulus rendered
+  responseMs        Float?       // ms from test start when response fired
+  reactionTimeMs    Float?
+
+  isFalseStart      Boolean      @default(false)  // response with rt<100 or no stimulus
+  isLapse           Boolean      @default(false)  // rt >= 355 (PVT-B threshold)
+  isValid           Boolean      @default(true)   // valid, non-lapse, non-false-start
+
+  session           TestSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime     @default(now())
+
+  @@index([sessionId, trialIndex])
+  @@map("test_trials")
+}
+
+model StateCheckIn {
+  id            String         @id @default(uuid())
+  participantId String
+  phase         TestPhase
+  source        CheckInSource  @default(test)
+  value         Int            // 1..7 (scattered → focused)
+
+  participant   Participant    @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime       @default(now())
+
+  @@map("state_checkins")
+}
+
+model GuidedSession {
+  id              String         @id @default(uuid())
+  participantId   String
+  studyArm        StudyArm
+  durationSeconds Int
+  completed       Boolean        @default(false)
+
+  startedAt       DateTime       @default(now())
+  completedAt     DateTime?
+
+  participant     Participant    @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@map("guided_sessions")
 }
