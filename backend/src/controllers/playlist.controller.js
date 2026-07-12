@@ -1,4 +1,6 @@
 import prisma from "../lib/prisma.js";
+import fs from "fs/promises";
+import path from "path";
 
 // Create playlist
 export const createPlaylist = async (req, res) => {
@@ -64,53 +66,100 @@ export const addAudioToPlaylist = async (req, res) => {
       });
     }
 
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Audio file is required",
+      });
+    }
+
     const {
       title,
       description,
-      audioUrl,
       thumbnailUrl,
       durationSeconds,
       audioOrder,
     } = req.body;
 
-    if (!title || !description || !audioUrl || !thumbnailUrl || !durationSeconds || !audioOrder) {
+    if (
+      !title ||
+      durationSeconds === undefined ||
+      audioOrder === undefined
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All audio details are required",
+        message: "Title, durationSeconds and audioOrder are required",
       });
     }
 
-    const audio = await prisma.playlistAudio.create({
-      data: {
-        playlistId,
-        title,
-        description,
-        audioUrl,
-        thumbnailUrl,
-        durationSeconds,
-        audioOrder,
-      },
-    });
-
-    await prisma.playlist.update({
+    const playlist = await prisma.playlist.findUnique({
       where: { id: playlistId },
-      data: {
-        totalAudios: {
-          increment: 1,
-        }, 
-        estimatedDurationMinutes: {
-      increment: Math.ceil(durationSeconds / 60),
-    },
-      },
     });
 
-    res.status(201).json({
+    if (!playlist) {
+      return res.status(404).json({
+        success: false,
+        message: "Playlist not found",
+      });
+    }
+
+    const parsedDuration = Number(durationSeconds);
+    const parsedOrder = Number(audioOrder);
+
+    if (
+      Number.isNaN(parsedDuration) ||
+      parsedDuration <= 0 ||
+      Number.isNaN(parsedOrder) ||
+      parsedOrder <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "durationSeconds and audioOrder must be valid numbers",
+      });
+    }
+
+    const audioUrl = `/uploads/audios/${req.file.filename}`;
+
+    const audio = await prisma.$transaction(async (tx) => {
+      const createdAudio = await tx.playlistAudio.create({
+        data: {
+          playlistId,
+          title,
+          description: description || null,
+          audioUrl,
+          thumbnailUrl: thumbnailUrl || null,
+          durationSeconds: parsedDuration,
+          audioOrder: parsedOrder,
+        },
+      });
+
+      await tx.playlist.update({
+        where: { id: playlistId },
+        data: {
+          totalAudios: {
+            increment: 1,
+          },
+          estimatedDurationMinutes: {
+            increment: Math.ceil(parsedDuration / 60),
+          },
+        },
+      });
+
+      return createdAudio;
+    });
+
+    return res.status(201).json({
       success: true,
-      message: "Audio added successfully",
+      message: "Audio uploaded and added successfully",
       data: audio,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Add audio error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -192,30 +241,49 @@ export const deleteAudio = async (req, res) => {
       });
     }
 
-    await prisma.playlistAudio.delete({
-      where: { id: audioId },
+    await prisma.$transaction(async (tx) => {
+      await tx.playlistAudio.delete({
+        where: { id: audioId },
+      });
+
+      await tx.playlist.update({
+        where: { id: audio.playlistId },
+        data: {
+          totalAudios: {
+            decrement: 1,
+          },
+          estimatedDurationMinutes: {
+            decrement: Math.ceil((audio.durationSeconds || 0) / 60),
+          },
+        },
+      });
     });
 
-    await prisma.playlist.update({
-      where: { id: audio.playlistId },
-      data: {
-        totalAudios: {
-          decrement: 1,
-        },
-        estimatedDurationMinutes: {
-          decrement: Math.ceil((audio.durationSeconds || 0) / 60),
-        },
-      },
-    });
+    if (audio.audioUrl?.startsWith("/uploads/")) {
+      const relativePath = audio.audioUrl.replace(/^\/+/, "");
+      const filePath = path.join(process.cwd(), relativePath);
 
-    res.status(200).json({
+      try {
+        await fs.unlink(filePath);
+      } catch (fileError) {
+        if (fileError.code !== "ENOENT") {
+          console.error("Audio file delete error:", fileError);
+        }
+      }
+    }
+
+    return res.status(200).json({
       success: true,
       message: "Audio deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 
 // Get all playlists without full audio details
 export const getAllPlaylists = async (req, res) => {
@@ -302,7 +370,7 @@ export const deletePlaylist = async(req,res) => {
       success: true,
       message: "Playlist deleted successfully",
     });
-    
+
   }catch(error){
     res.status(500).json({ success: false, message: error.message });
   }

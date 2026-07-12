@@ -704,7 +704,6 @@ function AddPlaylistModal({
     </>
   );
 }
-
 interface AddAudioModalProps {
   playlist: PlaylistRow;
   onClose: () => void;
@@ -721,13 +720,16 @@ function AddAudioModal({
   const [form, setForm] = useState({
     title: "",
     description: "",
-    audioUrl: "",
     thumbnailUrl: "",
     durationMinutes: "",
     durationSeconds: "",
     audioOrder: String(playlist.totalAudios + 1),
     isActive: true,
   });
+
+  const [audioFile, setAudioFile] = useState<File | null>(
+    null,
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -752,20 +754,66 @@ function AddAudioModal({
       return;
     }
 
-    if (!form.audioUrl.trim()) {
-      setError("Audio URL is required.");
+    if (!audioFile) {
+      setError("Please select an audio file.");
+      return;
+    }
+
+    const allowedTypes = [
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/ogg",
+      "audio/mp4",
+      "audio/x-m4a",
+    ];
+
+    if (
+      audioFile.type &&
+      !allowedTypes.includes(audioFile.type)
+    ) {
+      setError(
+        "Please select a valid MP3, WAV, OGG or M4A audio file.",
+      );
+      return;
+    }
+
+    const maxFileSize = 100 * 1024 * 1024;
+
+    if (audioFile.size > maxFileSize) {
+      setError("Audio file must be smaller than 100 MB.");
       return;
     }
 
     const minutes = Number(form.durationMinutes) || 0;
     const seconds = Number(form.durationSeconds) || 0;
 
-    if (minutes < 0 || seconds < 0 || seconds > 59) {
+    if (
+      minutes < 0 ||
+      seconds < 0 ||
+      seconds > 59
+    ) {
       setError("Please enter a valid audio duration.");
       return;
     }
 
-    const totalDurationSeconds = minutes * 60 + seconds;
+    const totalDurationSeconds =
+      minutes * 60 + seconds;
+
+    if (totalDurationSeconds <= 0) {
+      setError("Audio duration must be greater than zero.");
+      return;
+    }
+
+    const parsedOrder =
+      Number(form.audioOrder) ||
+      playlist.totalAudios + 1;
+
+    if (!Number.isInteger(parsedOrder) || parsedOrder <= 0) {
+      setError("Audio order must be a positive number.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -773,12 +821,13 @@ function AddAudioModal({
 
       await adminApi.addAudioToPlaylist(playlist.id, {
         title: form.title.trim(),
-        description: form.description.trim() || undefined,
-        audioUrl: form.audioUrl.trim(),
-        thumbnailUrl: form.thumbnailUrl.trim() || undefined,
+        description:
+          form.description.trim() || undefined,
+        audioFile,
+        thumbnailUrl:
+          form.thumbnailUrl.trim() || undefined,
         durationSeconds: totalDurationSeconds,
-        audioOrder:
-          Number(form.audioOrder) || playlist.totalAudios + 1,
+        audioOrder: parsedOrder,
         isActive: form.isActive,
       });
 
@@ -787,7 +836,7 @@ function AddAudioModal({
       const message =
         err instanceof Error
           ? err.message
-          : "Failed to add audio.";
+          : "Failed to upload audio.";
 
       if (message === "UNAUTHORIZED") {
         onUnauth();
@@ -847,6 +896,7 @@ function AddAudioModal({
               placeholder="Morning Mindfulness"
               value={form.title}
               autoFocus
+              disabled={submitting}
               onChange={(event) =>
                 updateForm("title", event.target.value)
               }
@@ -863,6 +913,7 @@ function AddAudioModal({
               className="admin-input playlist-textarea"
               placeholder="Enter a short description..."
               value={form.description}
+              disabled={submitting}
               onChange={(event) =>
                 updateForm(
                   "description",
@@ -873,24 +924,44 @@ function AddAudioModal({
           </div>
 
           <div className="playlist-form-group">
-            <label htmlFor="audio-url">
-              Audio URL <span>*</span>
+            <label htmlFor="audio-file">
+              Audio file <span>*</span>
             </label>
 
             <input
-              id="audio-url"
-              type="url"
+              id="audio-file"
+              type="file"
               className="admin-input"
-              placeholder="https://example.com/audio.mp3"
-              value={form.audioUrl}
-              onChange={(event) =>
-                updateForm("audioUrl", event.target.value)
-              }
+              accept=".mp3,.wav,.ogg,.m4a,audio/*"
+              disabled={submitting}
+              onChange={(event) => {
+                const selectedFile =
+                  event.target.files?.[0] || null;
+
+                setAudioFile(selectedFile);
+                setError(null);
+              }}
             />
 
-            <small>
-              Enter the direct URL of the MP3 or audio file.
-            </small>
+            {audioFile ? (
+              <div className="selected-audio-file">
+                <strong>{audioFile.name}</strong>
+
+                <small>
+                  {(
+                    audioFile.size /
+                    1024 /
+                    1024
+                  ).toFixed(2)}{" "}
+                  MB
+                </small>
+              </div>
+            ) : (
+              <small>
+                Select an MP3, WAV, OGG or M4A audio
+                file.
+              </small>
+            )}
           </div>
 
           <div className="playlist-form-group">
@@ -904,6 +975,7 @@ function AddAudioModal({
               className="admin-input"
               placeholder="https://example.com/thumbnail.jpg"
               value={form.thumbnailUrl}
+              disabled={submitting}
               onChange={(event) =>
                 updateForm(
                   "thumbnailUrl",
@@ -926,6 +998,7 @@ function AddAudioModal({
                 className="admin-input"
                 placeholder="5"
                 value={form.durationMinutes}
+                disabled={submitting}
                 onChange={(event) =>
                   updateForm(
                     "durationMinutes",
@@ -948,6 +1021,7 @@ function AddAudioModal({
                 className="admin-input"
                 placeholder="30"
                 value={form.durationSeconds}
+                disabled={submitting}
                 onChange={(event) =>
                   updateForm(
                     "durationSeconds",
@@ -968,6 +1042,7 @@ function AddAudioModal({
                 min="1"
                 className="admin-input"
                 value={form.audioOrder}
+                disabled={submitting}
                 onChange={(event) =>
                   updateForm(
                     "audioOrder",
@@ -982,6 +1057,7 @@ function AddAudioModal({
             <input
               type="checkbox"
               checked={form.isActive}
+              disabled={submitting}
               onChange={(event) =>
                 updateForm(
                   "isActive",
@@ -994,7 +1070,8 @@ function AddAudioModal({
               <strong>Active audio</strong>
 
               <small>
-                Active audio will be visible to participants.
+                Active audio will be visible to
+                participants.
               </small>
             </span>
           </label>
@@ -1017,10 +1094,12 @@ function AddAudioModal({
               disabled={
                 submitting ||
                 !form.title.trim() ||
-                !form.audioUrl.trim()
+                !audioFile
               }
             >
-              {submitting ? "Adding…" : "Add Audio"}
+              {submitting
+                ? "Uploading…"
+                : "Upload Audio"}
             </button>
           </div>
         </form>

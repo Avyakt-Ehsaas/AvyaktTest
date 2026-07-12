@@ -139,6 +139,23 @@ export function PlaylistDetailScreen() {
         (audio) => audio.audioUrl === selectedAudio
     );
 
+
+    const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
+    function resolveAudioUrl(audioUrl: string) {
+        if (!audioUrl) return "";
+
+        if (
+            audioUrl.startsWith("http://") ||
+            audioUrl.startsWith("https://")
+        ) {
+            return audioUrl;
+        }
+
+        return `${BACKEND_URL}${audioUrl}`;
+    }
+
     return (
         <main className="playlist-detail-page">
             <section className="playlist-detail-container">
@@ -162,48 +179,48 @@ export function PlaylistDetailScreen() {
                     <div className="playlist-detail-icon">🎧</div>
                 </div>
 
-               
-                    <div className="audio-layout only-list">
-                        <div className="track-list-card">
-                            <h2>Playlist Audios</h2>
 
-                            {audios.length === 0 ? (
-                                <p className="text-muted">No audios available in this playlist.</p>
-                            ) : (
-                                <div className="track-list">
-                                    {audios.map((audio, index) => (
-                                        <button
-                                            key={audio.id}
-                                            className={
-                                                selectedAudio === audio.audioUrl
-                                                    ? "track-item active"
-                                                    : "track-item"
-                                            }
-                                            onClick={() => openPlayer(audio.audioUrl)}
-                                        >
-                                            <span className="track-number">{index + 1}</span>
+                <div className="audio-layout only-list">
+                    <div className="track-list-card">
+                        <h2>Playlist Audios</h2>
 
-                                            <span className="track-info">
-                                                <strong>{audio.title}</strong>
-                                                {audio.durationSeconds && (
-                                                    <small>{Math.round(audio.durationSeconds / 60)} min</small>
-                                                )}
-                                            </span>
+                        {audios.length === 0 ? (
+                            <p className="text-muted">No audios available in this playlist.</p>
+                        ) : (
+                            <div className="track-list">
+                                {audios.map((audio, index) => (
+                                    <button
+                                        key={audio.id}
+                                        className={
+                                            selectedAudio === audio.audioUrl
+                                                ? "track-item active"
+                                                : "track-item"
+                                        }
+                                        onClick={() => openPlayer(audio.audioUrl)}
+                                    >
+                                        <span className="track-number">{index + 1}</span>
 
-                                            <span className="track-play">▶</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                        <span className="track-info">
+                                            <strong>{audio.title}</strong>
+                                            {audio.durationSeconds && (
+                                                <small>{Math.round(audio.durationSeconds / 60)} min</small>
+                                            )}
+                                        </span>
+
+                                        <span className="track-play">▶</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                
+                </div>
+
             </section>
 
             {playerOpen && (
                 <LockedPlayerModal
                     title={currentAudio?.title || "Meditation Audio"}
-                    audioUrl={selectedAudio}
+                    audioUrl={resolveAudioUrl(selectedAudio)}
                     audioCompleted={audioCompleted}
                     holdProgress={holdProgress}
                     onAudioEnd={() => setAudioCompleted(true)}

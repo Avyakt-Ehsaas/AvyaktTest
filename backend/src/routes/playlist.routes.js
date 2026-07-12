@@ -13,6 +13,8 @@ import {
 
 import {adminAuth} from "../middleware/adminAuth.js";
 
+import {uploadAudio} from "../middleware/uploadAudio.js"
+
 const router = express.Router();
 
 /**
@@ -104,7 +106,7 @@ router.get("/active", getActivePlaylist);
  *       201:
  *         description: Audio added successfully
  */
-router.post("/:playlistId/audios", adminAuth, addAudioToPlaylist);
+router.post("/:playlistId/audios", adminAuth, uploadAudio.single("audio") , addAudioToPlaylist);
 
 
 

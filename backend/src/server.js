@@ -24,7 +24,10 @@ app.use(express.json());
 
 app.use(
   "/uploads",
-  express.static(path.join(process.cwd(), "uploads"))
+  express.static(path.join(process.cwd(), "uploads"), {
+    acceptRanges: true,
+    maxAge: "1d",
+  })
 );
 
 app.use("/api/playlists", playlistRoutes);
@@ -39,10 +42,32 @@ app.use("/api/checkins", checkinsRouter);
 app.use("/api/guided", guidedRouter);
 app.use("/api/admin", adminRouter);
 
+app.use((error, req, res, next) => {
+  if (error?.name === "MulterError") {
+    return res.status(400).json({
+      success: false,
+      message:
+        error.code === "LIMIT_FILE_SIZE"
+          ? "Audio file must be smaller than 100 MB"
+          : error.message,
+    });
+  }
+
+  if (error?.message === "Only audio files are allowed") {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+
+  next(error);
+});
+
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Server error" });
 });
+
 
 app.listen(PORT, () => {
   console.log(`Attention Reset backend listening on :${PORT}`);

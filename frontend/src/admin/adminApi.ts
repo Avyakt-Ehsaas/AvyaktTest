@@ -142,12 +142,40 @@ async function addAudioToPlaylist(
   playlistId: string,
   payload: AddAudioPayload,
 ) {
+  const formData = new FormData();
+
+  formData.append("audio", payload.audioFile);
+  formData.append("title", payload.title);
+  formData.append(
+    "durationSeconds",
+    String(payload.durationSeconds),
+  );
+  formData.append(
+    "audioOrder",
+    String(payload.audioOrder),
+  );
+
+  if (payload.description) {
+    formData.append("description", payload.description);
+  }
+
+  if (payload.thumbnailUrl) {
+    formData.append("thumbnailUrl", payload.thumbnailUrl);
+  }
+
+  formData.append(
+  "isActive",
+  String(payload.isActive ?? true),
+);
+
   const response = await fetch(
     `${PLAYLIST_BASE}/${playlistId}/audios`,
     {
       method: "POST",
-      headers: hdrs(),
-      body: JSON.stringify(payload),
+      headers: {
+        "x-admin-key": getKey(),
+      },
+      body: formData,
     },
   );
 

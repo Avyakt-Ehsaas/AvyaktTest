@@ -164,7 +164,7 @@ export interface CreatePlaylistPayload {
 export interface AddAudioPayload {
   title: string;
   description?: string;
-  audioUrl: string;
+  audioFile: File;
   thumbnailUrl?: string;
   durationSeconds?: number;
   audioOrder: number;
