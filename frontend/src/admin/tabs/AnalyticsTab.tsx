@@ -49,7 +49,7 @@ function DiagnosticChart({ data, label }: { data: DiagnosticStat[]; label: strin
           <YAxis tick={{ fontSize: 10, fill: "#889" }} unit="ms" tickLine={false} axisLine={false} domain={["auto", "auto"]} />
           <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${Number(v).toFixed(0)} ms`, "Avg Median RT"]} />
           <Bar dataKey="avgMedianRt" name="Avg Median RT" radius={[4, 4, 0, 0]}>
-            {sorted.map((entry, i) => (
+            {sorted.map((_entry, i) => (
               <Cell key={i} fill={i === 0 ? SAGE : i === sorted.length - 1 ? "#B05030" : MUTED} />
             ))}
           </Bar>
@@ -135,7 +135,7 @@ export function AnalyticsTab({ onUnauth }: Props) {
                   <Bar dataKey="avgLapseCount" name="Avg lapses" fill={AMBER} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartCard>
-
+ 
               <ChartCard title="Avg Focus Check-in Delta by Age Group" subtitle="Post − pre check-in value (1–7 scale)">
                 <BarChart data={data.ageGroups} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E8EDE4" vertical={false} />
