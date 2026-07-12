@@ -133,3 +133,40 @@ export interface SessionListResponse {
   limit: number;
   data: SessionRow[];
 }
+
+
+export interface PlaylistRow {
+  id: string;
+  title: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  totalAudios: number;
+  estimatedDurationMinutes: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaylistListResponse {
+  success: boolean;
+  count: number;
+  data: PlaylistRow[];
+}
+
+export interface CreatePlaylistPayload {
+  title: string;
+  description?: string;
+  coverImageUrl?: string;
+  estimatedDurationMinutes?: number;
+  isActive?: boolean;
+}
+
+export interface AddAudioPayload {
+  title: string;
+  description?: string;
+  audioUrl: string;
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  audioOrder: number;
+  isActive: boolean;
+}

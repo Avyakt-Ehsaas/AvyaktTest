@@ -77,3 +77,38 @@ export interface SessionResult {
   status: "completed" | "interrupted" | "in_progress";
   percentile?: number | null;
 }
+
+export interface PlaylistAudio {
+  id: string;
+  playlistId: string;
+  title: string;
+  description: string;
+  audioUrl: string;
+  thumbnailUrl: string;
+  durationSeconds: number;
+  audioOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Playlist {
+  id: string;
+  title: string;
+  description: string;
+  coverImageUrl: string;
+  totalAudios: number;
+  estimatedDurationMinutes: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PlaylistDetail extends Playlist {
+  audios: PlaylistAudio[];
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}

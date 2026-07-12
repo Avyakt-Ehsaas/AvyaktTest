@@ -4,46 +4,200 @@ import type {
   AnalyticsData,
   SessionListResponse,
   SessionDetail,
+  PlaylistListResponse,
+  PlaylistRow,
+  CreatePlaylistPayload,
+  AddAudioPayload,
 } from "./adminTypes";
 
-const BASE = "/api/admin";
+const ADMIN_BASE = "/api/admin";
+const PLAYLIST_BASE = "/api/playlists";
 
 function getKey(): string {
   return sessionStorage.getItem("arp:adminKey") || "";
 }
 
 function hdrs(): HeadersInit {
-  return { "Content-Type": "application/json", "x-admin-key": getKey() };
+  return {
+    "Content-Type": "application/json",
+    "x-admin-key": getKey(),
+  };
 }
 
-async function get<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
-  const url = new URL(BASE + path, window.location.origin);
+async function get<T>(
+  path: string,
+  params?: Record<string, string | undefined>,
+): Promise<T> {
+  const url = new URL(ADMIN_BASE + path, window.location.origin);
+
   if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && v !== "") url.searchParams.set(k, v);
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== "") {
+        url.searchParams.set(key, value);
+      }
     }
   }
-  const resp = await fetch(url.toString(), { headers: hdrs() });
-  if (resp.status === 401) throw new Error("UNAUTHORIZED");
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${resp.status}`);
+
+  const response = await fetch(url.toString(), {
+    headers: hdrs(),
+  });
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
   }
-  return resp.json();
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+
+    throw new Error(
+      body.error ||
+      body.message ||
+      `Request failed: ${response.status}`,
+    );
+  }
+
+  return response.json();
+}
+
+/* Playlist GET request */
+async function getPlaylists(): Promise<PlaylistListResponse> {
+  const response = await fetch(PLAYLIST_BASE, {
+    headers: hdrs(),
+  });
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+
+    throw new Error(
+      body.error ||
+      body.message ||
+      `Request failed: ${response.status}`,
+    );
+  }
+
+  return response.json();
+}
+
+
+async function del<T>(path: string): Promise<T> {
+const response = await fetch(`${PLAYLIST_BASE}${path}`, {
+    method: "DELETE",
+    headers: hdrs(),
+  });
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+
+    throw new Error(
+      body.error || `Request failed: ${response.status}`,
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
+
+/* Playlist POST request */
+async function createPlaylist(
+  payload: CreatePlaylistPayload,
+): Promise<PlaylistRow> {
+  const response = await fetch(PLAYLIST_BASE, {
+    method: "POST",
+    headers: hdrs(),
+    body: JSON.stringify(payload),
+  });
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+
+    throw new Error(
+      body.error ||
+      body.message ||
+      `Request failed: ${response.status}`,
+    );
+  }
+
+  const result = await response.json();
+
+  return result.data ?? result;
+}
+
+async function addAudioToPlaylist(
+  playlistId: string,
+  payload: AddAudioPayload,
+) {
+  const response = await fetch(
+    `${PLAYLIST_BASE}/${playlistId}/audios`,
+    {
+      method: "POST",
+      headers: hdrs(),
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (response.status === 401) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+
+    throw new Error(
+      body.error ||
+        body.message ||
+        `Request failed: ${response.status}`,
+    );
+  }
+
+  const result = await response.json();
+
+  return result.data ?? result;
 }
 
 export const adminApi = {
   overview: () => get<OverviewData>("/overview"),
 
-  participants: (params?: Record<string, string | undefined>) =>
-    get<ParticipantListResponse>("/participants", params),
+  participants: (
+    params?: Record<string, string | undefined>,
+  ) => get<ParticipantListResponse>("/participants", params),
 
-  participant: (id: string) => get<any>(`/participants/${id}`),
+  participant: (id: string) =>
+    get<any>(`/participants/${id}`),
 
-  analytics: () => get<AnalyticsData>("/analytics"),
+  analytics: () =>
+    get<AnalyticsData>("/analytics"),
 
-  sessions: (params?: Record<string, string | undefined>) =>
-    get<SessionListResponse>("/sessions", params),
+  sessions: (
+    params?: Record<string, string | undefined>,
+  ) => get<SessionListResponse>("/sessions", params),
 
-  session: (id: string) => get<SessionDetail>(`/sessions/${id}`),
+  session: (id: string) =>
+    get<SessionDetail>(`/sessions/${id}`),
+
+  playlists: getPlaylists,
+
+  createPlaylist,
+
+  addAudioToPlaylist,
+
+  deletePlaylist(id: string): Promise<void> {
+  return del<void>(`/${id}`);
+},
 };
+

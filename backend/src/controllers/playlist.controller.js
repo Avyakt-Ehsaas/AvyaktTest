@@ -278,3 +278,32 @@ export const getPlaylistById = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const deletePlaylist = async(req,res) => {
+  try{
+    const {playlistId} = req.params;
+
+    const playlist = await prisma.playlist.findUnique({
+      where: {id: playlistId}
+    });
+
+    if (!playlist) {
+      return res.status(404).json({
+        success: false,
+        message: "Playlist not found",
+      });
+    }
+
+    await prisma.playlist.delete({
+      where: {id: playlistId}
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Playlist deleted successfully",
+    });
+    
+  }catch(error){
+    res.status(500).json({ success: false, message: error.message });
+  }
+}

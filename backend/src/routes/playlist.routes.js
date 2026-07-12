@@ -7,8 +7,11 @@ import {
   updateAudioProgress,
   deleteAudio,
   getAllPlaylists,
-  getPlaylistById
+  getPlaylistById,
+  deletePlaylist
 } from "../controllers/playlist.controller.js";
+
+import {adminAuth} from "../middleware/adminAuth.js";
 
 const router = express.Router();
 
@@ -40,7 +43,7 @@ const router = express.Router();
  *       201:
  *         description: Playlist created successfully
  */
-router.post("/", createPlaylist);
+router.post("/", adminAuth, createPlaylist);
 
 /**
  * @swagger
@@ -101,7 +104,7 @@ router.get("/active", getActivePlaylist);
  *       201:
  *         description: Audio added successfully
  */
-router.post("/:playlistId/audios", addAudioToPlaylist);
+router.post("/:playlistId/audios", adminAuth, addAudioToPlaylist);
 
 
 
@@ -146,7 +149,7 @@ router.post("/:playlistId/audios", addAudioToPlaylist);
  *       200:
  *         description: Progress updated successfully
  */
-router.patch("/progress", updateAudioProgress);
+router.patch("/progress",  updateAudioProgress);
 
 /**
  * @swagger
@@ -189,7 +192,9 @@ router.patch("/progress", updateAudioProgress);
  *                   type: string
  *                   example: Audio not found
  */
-router.delete("/audios/:audioId", deleteAudio);
+router.delete("/audios/:audioId", adminAuth, deleteAudio);
+
+router.delete("/:playlistId", adminAuth, deletePlaylist);
 
 /**
  * @swagger
@@ -262,5 +267,7 @@ router.get("/", getAllPlaylists);
  *         description: Playlist not found
  */
 router.get("/:playlistId", getPlaylistById);
+
+
 
 export default router;

@@ -3,14 +3,16 @@ import { OverviewTab } from "./tabs/OverviewTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
 import { ParticipantsTab } from "./tabs/ParticipantsTab";
 import { SessionsTab } from "./tabs/SessionsTab";
+import { PlaylistsTab } from "./tabs/playlist/PlaylistsTab";
 
-type Tab = "overview" | "analytics" | "participants" | "sessions";
+type Tab = "overview" | "analytics" | "participants" | "sessions" | "playlists";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "analytics", label: "Analytics" },
   { id: "participants", label: "Participants" },
   { id: "sessions", label: "Sessions" },
+  { id: "playlists", label: "Playlists" },
 ];
 
 export function AdminDashboard() {
@@ -89,6 +91,7 @@ export function AdminDashboard() {
         {tab === "analytics"     && <AnalyticsTab onUnauth={signOut} />}
         {tab === "participants"  && <ParticipantsTab onUnauth={signOut} />}
         {tab === "sessions"      && <SessionsTab onUnauth={signOut} />}
+        {tab === "playlists"     && <PlaylistsTab onUnauth={signOut} />}
       </main>
     </div>
   );

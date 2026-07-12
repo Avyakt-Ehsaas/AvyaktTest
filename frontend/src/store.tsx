@@ -20,6 +20,10 @@ interface FlowState {
   preCheckin: number | null;
   postCheckin: number | null;
   guidedSessionId: string | null;
+
+  selectedPlaylistId: string | null;
+  selectedTrackId: string | null;
+
 }
 
 const empty: FlowState = {
@@ -31,6 +35,9 @@ const empty: FlowState = {
   preCheckin: null,
   postCheckin: null,
   guidedSessionId: null,
+
+  selectedPlaylistId: null,
+  selectedTrackId: null,
 };
 
 interface Ctx extends FlowState {
@@ -45,6 +52,10 @@ interface Ctx extends FlowState {
   clearParticipant: () => void;
   isPracticeDone: () => boolean;
   markPracticeDone: () => void;
+
+  setSelectedPlaylistId: (id: string | null) => void;
+  setSelectedTrackId: (id: string | null) => void;
+
 }
 
 const FlowContext = createContext<Ctx | null>(null);
@@ -121,6 +132,21 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+const setSelectedPlaylistId = useCallback(
+  (id: string | null) =>
+    setState((s) => ({
+      ...s,
+      selectedPlaylistId: id,
+      selectedTrackId: null,
+    })),
+  []
+);
+  const setSelectedTrackId = useCallback(
+    (id: string | null) => setState((s) => ({ ...s, selectedTrackId: id })),
+    []
+  );
+
+
   const value: Ctx = useMemo(
     () => ({
       ...state,
@@ -135,6 +161,10 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
       clearParticipant,
       isPracticeDone,
       markPracticeDone,
+
+      setSelectedPlaylistId,
+      setSelectedTrackId,
+
     }),
     [
       state,
@@ -149,6 +179,9 @@ export function FlowProvider({ children }: { children: React.ReactNode }) {
       clearParticipant,
       isPracticeDone,
       markPracticeDone,
+
+      setSelectedPlaylistId,
+      setSelectedTrackId,
     ]
   );
 

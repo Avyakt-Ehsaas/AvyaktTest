@@ -14,6 +14,10 @@ import { GuidedSessionScreen } from "./screens/GuidedSessionScreen";
 import { PostResultsScreen } from "./screens/PostResultsScreen";
 import { ThankYouScreen } from "./screens/ThankYouScreen";
 
+import  { PlaylistScreen } from './screens/PlaylistScreen'
+import { PlaylistDetailScreen } from "./screens/PlaylistDetailScreen";
+
+
 export default function App() {
   return (
     <FlowProvider>
@@ -31,9 +35,15 @@ export default function App() {
           <Route path="/guided" element={<GuidedSessionScreen />} />
           <Route path="/results/post" element={<PostResultsScreen />} />
           <Route path="/done" element={<ThankYouScreen />} />
+
+          <Route path="/playlists" element={<PlaylistScreen />} />
+          <Route path="/playlists/:id" element={<PlaylistDetailScreen />} />
+
           <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/admin/playlists/:id" element={<PlaylistDetailScreen />} />
+
         </Routes>
       </BrowserRouter>
-    </FlowProvider>
+    </FlowProvider> 
   );
 }

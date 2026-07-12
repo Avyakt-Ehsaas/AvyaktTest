@@ -6,6 +6,10 @@ import type {
   SessionResult,
   StudyArm,
   Trial,
+  Playlist,
+  PlaylistDetail,
+  ApiResponse,
+
 } from "./types";
 
 const API = "/api";
@@ -75,6 +79,20 @@ export const api = {
   completeGuided(id: string) {
     return req(`/guided/${id}/complete`, { method: "PATCH" });
   },
+
+ getPlaylists(): Promise<Playlist[]> {
+  return req<ApiResponse<Playlist[]>>("/playlists").then(
+    (res) => res.data
+  );
+},
+
+getPlaylist(id: string): Promise<PlaylistDetail> {
+  return req<ApiResponse<PlaylistDetail>>(`/playlists/${id}`).then(
+    (res) => res.data
+  );
+},
+
+
 };
 
 // Offline-safe submission wrapper (PDF §2.2 last row):
