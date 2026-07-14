@@ -92,6 +92,25 @@ getPlaylist(id: string): Promise<PlaylistDetail> {
   );
 },
 
+getActivePlaylist(): Promise<PlaylistDetail | null> {
+  return req<ApiResponse<PlaylistDetail | null>>("/playlists/active").then(
+    (res) => res.data
+  );
+},
+
+updatePlaylistProgress(payload: {
+  sessionId: string;
+  userId?: string;
+  playlistId: string;
+  audioId: string;
+  playedDurationSeconds: number;
+  completionPercentage: number;
+}): Promise<void> {
+  return req("/playlists/progress", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+},
 
 };
 

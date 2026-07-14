@@ -13,10 +13,10 @@ export function ThankYouScreen() {
       <p className="text-muted">
         If you want to build on what you just felt, here's where to start.
       </p>
-      <button className="btn mt-24" onClick={() => window.open("https://example.com/beginner-course", "_blank") }>
+      <button className="btn mt-24" onClick={() => nav("/playlists")}>
         Join the Beginner Course
       </button>
-      <button className="btn-link mt-16" onClick={() => window.open("https://example.com/library", "_blank")}>
+      <button className="btn-link mt-16" onClick={() => nav("/playlists")}>
         Try our short meditations
       </button>
       <button

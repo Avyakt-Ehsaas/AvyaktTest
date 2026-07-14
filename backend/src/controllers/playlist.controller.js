@@ -175,10 +175,10 @@ export const updateAudioProgress = async (req, res) => {
       completionPercentage,
     } = req.body;
 
-    if (!sessionId || !userId || !playlistId || !audioId || playedDurationSeconds === undefined || completionPercentage === undefined) {
+    if (!sessionId || !playlistId || !audioId || playedDurationSeconds === undefined || completionPercentage === undefined) {
       return res.status(400).json({
         success: false,
-        message: "All progress details are required",
+        message: "sessionId, playlistId, audioId, playedDurationSeconds, and completionPercentage are required",
       });
     }
 
@@ -192,7 +192,7 @@ export const updateAudioProgress = async (req, res) => {
         },
       },
       update: {
-        userId,
+        ...(userId ? { userId } : {}),
         playedDurationSeconds,
         completionPercentage,
         isStarted: true,
@@ -202,7 +202,7 @@ export const updateAudioProgress = async (req, res) => {
       },
       create: {
         sessionId,
-        userId,
+        ...(userId ? { userId } : {}),
         playlistId,
         audioId,
         playedDurationSeconds,

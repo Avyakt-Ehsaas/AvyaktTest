@@ -170,3 +170,25 @@ export interface AddAudioPayload {
   audioOrder: number;
   isActive: boolean;
 }
+
+export interface PlaylistStat {
+  playlistId: string;
+  title: string;
+  totalPlays: number;
+  completions: number;
+  completionRate: number | null;
+}
+
+export interface AudioStat {
+  audioId: string;
+  title: string;
+  audioOrder: number;
+  playlistTitle: string;
+  totalPlays: number;
+  completions: number;
+}
+
+export interface PlaylistAnalyticsData {
+  playlistStats: PlaylistStat[];
+  audioStats: AudioStat[];
+}

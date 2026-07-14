@@ -7,8 +7,8 @@ export const PVT_ISI_MIN = 1000;   // ms
 export const PVT_ISI_MAX = 4000;   // ms
 export const FALSE_START_MS = 100; // rt < 100 → false start
 export const LAPSE_MS = 355;       // rt ≥ 355 → lapse (PVT-B validated)
-export const TALK_DURATION_S = 90;
-export const STALL_DURATION_S = 180;
+export const TALK_DURATION_S = 2;
+export const STALL_DURATION_S = 2;
 
 // Debug override: when ?debug=1 is on the URL, shorten tests + guided timer
 // so end-to-end verification can run in seconds.  Real event runs unchanged.

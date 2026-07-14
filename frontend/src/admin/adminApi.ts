@@ -8,6 +8,7 @@ import type {
   PlaylistRow,
   CreatePlaylistPayload,
   AddAudioPayload,
+  PlaylistAnalyticsData,
 } from "./adminTypes";
 
 const ADMIN_BASE = "/api/admin";
@@ -210,6 +211,9 @@ export const adminApi = {
 
   analytics: () =>
     get<AnalyticsData>("/analytics"),
+
+  playlistAnalytics: () =>
+    get<PlaylistAnalyticsData>("/playlist-analytics"),
 
   sessions: (
     params?: Record<string, string | undefined>,

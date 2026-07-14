@@ -1,8 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { PlaylistDetail } from "../types";
 import { api } from "../api";
 import { LockedPlayerModal } from "../components/LockedPlayerModal.tsx"
+
+const PROGRESS_SESSION_KEY = "arp:playlistSessionId";
+
+function getOrCreateSessionId(): string {
+  let id = localStorage.getItem(PROGRESS_SESSION_KEY);
+  if (!id) {
+    id = `ps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    localStorage.setItem(PROGRESS_SESSION_KEY, id);
+  }
+  return id;
+}
 
 export function PlaylistDetailScreen() {
     const { id } = useParams();
@@ -17,11 +28,38 @@ export function PlaylistDetailScreen() {
     const [audioCompleted, setAudioCompleted] = useState(false);
     const [holdProgress, setHoldProgress] = useState(0);
     const [holdTimer, setHoldTimer] = useState<number | null>(null);
+    const progressTracked = useRef<Set<string>>(new Set());
+
+    function trackAudioStart(audio: { id: string; playlistId: string; durationSeconds: number }) {
+        const sessionId = getOrCreateSessionId();
+        api.updatePlaylistProgress({
+            sessionId,
+            playlistId: audio.playlistId,
+            audioId: audio.id,
+            playedDurationSeconds: 0,
+            completionPercentage: 0,
+        }).catch(() => {});
+    }
+
+    function trackAudioComplete(audio: { id: string; playlistId: string; durationSeconds: number }) {
+        if (progressTracked.current.has(audio.id)) return;
+        progressTracked.current.add(audio.id);
+        const sessionId = getOrCreateSessionId();
+        api.updatePlaylistProgress({
+            sessionId,
+            playlistId: audio.playlistId,
+            audioId: audio.id,
+            playedDurationSeconds: audio.durationSeconds || 0,
+            completionPercentage: 100,
+        }).catch(() => {});
+    }
 
     const openPlayer = (audioUrl: string) => {
+        const audio = playlist?.audios?.find((a) => a.audioUrl === audioUrl);
         setSelectedAudio(audioUrl);
         setAudioCompleted(false);
         setPlayerOpen(true);
+        if (audio) trackAudioStart(audio);
     };
 
     const closePlayer = () => {
@@ -223,7 +261,10 @@ export function PlaylistDetailScreen() {
                     audioUrl={resolveAudioUrl(selectedAudio)}
                     audioCompleted={audioCompleted}
                     holdProgress={holdProgress}
-                    onAudioEnd={() => setAudioCompleted(true)}
+                    onAudioEnd={() => {
+                        setAudioCompleted(true);
+                        if (currentAudio) trackAudioComplete(currentAudio);
+                    }}
                     onComplete={closePlayer}
                     onHoldStart={startHoldToExit}
                     onHoldCancel={cancelHoldToExit}

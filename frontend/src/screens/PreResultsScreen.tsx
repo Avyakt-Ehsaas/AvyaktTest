@@ -23,7 +23,7 @@ export function PreResultsScreen() {
   const median = preSession.medianRt != null
     ? Math.round(preSession.medianRt)
     : null;
-  const duration = preSession.durationSeconds === 90 ? "90 seconds" : "3 minutes";
+  const duration = `${preSession.durationSeconds} seconds`;
 
   async function optIn() {
     if (!participantId) return;

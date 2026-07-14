@@ -73,7 +73,7 @@ export function InstructionsScreen() {
         <div className="brand">Avyakt Ehsaas</div>
         <h1>Ready for the real one?</h1>
         <p className="text-muted">
-          It takes {durationSec === TALK_DURATION_S ? "90 seconds" : "3 minutes"}.
+          It takes {durationSec} seconds.
           Same rules — but no feedback until the end.
         </p>
         <button

@@ -435,4 +435,65 @@ router.get("/sessions/:id", async (req, res) => {
   }
 });
 
+// GET /api/admin/playlist-analytics — play counts per playlist and audio
+router.get("/playlist-analytics", async (_req, res) => {
+  try {
+    const [playlistStats, audioStats] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT
+          pl.id            AS "playlistId",
+          pl.title,
+          COUNT(up.id)::int                                       AS "totalPlays",
+          COUNT(CASE WHEN up."isCompleted" THEN 1 END)::int       AS "completions",
+          ROUND(
+            COUNT(CASE WHEN up."isCompleted" THEN 1 END)::numeric * 100.0
+            / NULLIF(COUNT(up.id)::numeric, 0), 1
+          )::float AS "completionRate"
+        FROM playlists pl
+        LEFT JOIN user_playlist_progress up
+          ON up."playlistId" = pl.id AND up."isStarted" = true
+        GROUP BY pl.id, pl.title
+        ORDER BY "totalPlays" DESC
+      `,
+      prisma.$queryRaw`
+        SELECT
+          pa.id              AS "audioId",
+          pa.title,
+          pa."audioOrder",
+          pl.title           AS "playlistTitle",
+          COUNT(up.id)::int                                       AS "totalPlays",
+          COUNT(CASE WHEN up."isCompleted" THEN 1 END)::int       AS "completions"
+        FROM playlist_audios pa
+        JOIN playlists pl ON pa."playlistId" = pl.id
+        LEFT JOIN user_playlist_progress up
+          ON up."audioId" = pa.id AND up."isStarted" = true
+        GROUP BY pa.id, pa.title, pa."audioOrder", pl.title
+        ORDER BY "totalPlays" DESC
+        LIMIT 20
+      `,
+    ]);
+
+    res.json({
+      playlistStats: playlistStats.map((r) => ({
+        playlistId: r.playlistId,
+        title: r.title,
+        totalPlays: Number(r.totalPlays),
+        completions: Number(r.completions),
+        completionRate: r.completionRate != null ? Number(r.completionRate) : null,
+      })),
+      audioStats: audioStats.map((r) => ({
+        audioId: r.audioId,
+        title: r.title,
+        audioOrder: Number(r.audioOrder),
+        playlistTitle: r.playlistTitle,
+        totalPlays: Number(r.totalPlays),
+        completions: Number(r.completions),
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Playlist analytics query failed" });
+  }
+});
+
 export default router;

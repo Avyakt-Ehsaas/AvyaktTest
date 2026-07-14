@@ -4,10 +4,18 @@ import { ProgressRing } from "../components/ProgressRing";
 import { useFlow } from "../store";
 import { api } from "../api";
 import { guidedDurationSeconds } from "../types";
+import type { PlaylistAudio } from "../types";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
+function resolveAudioUrl(audioUrl: string) {
+  if (!audioUrl) return "";
+  if (audioUrl.startsWith("http://") || audioUrl.startsWith("https://")) return audioUrl;
+  return `${BACKEND_URL}${audioUrl}`;
+}
 
 // Screens 7a / 7b (PDF §3): guided session (Arm A) or quiet timer (Arm B).
-// Both have identical visual polish (§3 Screen 7b) so control-arm participants
-// don't perceive it as less legitimate — that would bias engagement.
+// Arm A plays the first audio from the active playlist; Arm B is a quiet timer.
 export function GuidedSessionScreen() {
   const nav = useNavigate();
   const {
@@ -24,6 +32,23 @@ export function GuidedSessionScreen() {
   const [audioStarted, setAudioStarted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Active playlist state for Arm A
+  const [activeAudio, setActiveAudio] = useState<PlaylistAudio | null>(null);
+  const [playlistLoadError, setPlaylistLoadError] = useState(false);
+  const progressTrackedRef = useRef(false);
+
+  // Fetch active playlist for Arm A
+  useEffect(() => {
+    if (arm !== "A") return;
+    api.getActivePlaylist()
+      .then((playlist) => {
+        const firstAudio = playlist?.audios?.find((a) => a.isActive);
+        if (firstAudio) setActiveAudio(firstAudio);
+        else setPlaylistLoadError(true);
+      })
+      .catch(() => setPlaylistLoadError(true));
+  }, [arm]);
+
   // Create the guided session record on mount.
   useEffect(() => {
     if (!participantId || guidedSessionId) return;
@@ -32,6 +57,36 @@ export function GuidedSessionScreen() {
       .then((r) => setGuidedSessionId(r.id))
       .catch(() => setError("Couldn't reach server — session runs locally."));
   }, [participantId, arm, guidedSessionId, setGuidedSessionId]);
+
+  // Track audio play start (for Arm A playlist progress)
+  function trackStart() {
+    if (!activeAudio || !participantId || progressTrackedRef.current) return;
+    const sessionId = `guided-${participantId}`;
+    api.updatePlaylistProgress({
+      sessionId,
+      userId: participantId,
+      playlistId: activeAudio.playlistId,
+      audioId: activeAudio.id,
+      playedDurationSeconds: 0,
+      completionPercentage: 0,
+    }).catch(() => {});
+  }
+
+  // Track audio completion (for Arm A playlist progress)
+  function trackCompletion(playedSec: number) {
+    if (!activeAudio || !participantId) return;
+    const sessionId = `guided-${participantId}`;
+    const totalSec = activeAudio.durationSeconds || durationSec;
+    const pct = Math.min(100, Math.round((playedSec / totalSec) * 100));
+    api.updatePlaylistProgress({
+      sessionId,
+      userId: participantId,
+      playlistId: activeAudio.playlistId,
+      audioId: activeAudio.id,
+      playedDurationSeconds: playedSec,
+      completionPercentage: pct,
+    }).catch(() => {});
+  }
 
   // Ticker
   useEffect(() => {
@@ -45,6 +100,12 @@ export function GuidedSessionScreen() {
         if (guidedSessionId) {
           api.completeGuided(guidedSessionId).catch(() => {});
         }
+        // Track partial/full completion when timer ends
+        if (arm === "A" && !progressTrackedRef.current) {
+          progressTrackedRef.current = true;
+          const playedSec = audioRef.current?.currentTime ?? e;
+          trackCompletion(Math.round(playedSec));
+        }
         nav("/checkin/post");
         return;
       }
@@ -52,6 +113,7 @@ export function GuidedSessionScreen() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durationSec, guidedSessionId, nav]);
 
   function togglePlay() {
@@ -59,10 +121,20 @@ export function GuidedSessionScreen() {
     if (!a) return;
     if (a.paused) {
       a.play()
-        .then(() => setAudioStarted(true))
+        .then(() => {
+          setAudioStarted(true);
+          trackStart();
+        })
         .catch(() => setError("Audio couldn't play. Try again."));
     } else {
       a.pause();
+    }
+  }
+
+  function handleAudioEnded() {
+    if (!progressTrackedRef.current) {
+      progressTrackedRef.current = true;
+      trackCompletion(activeAudio?.durationSeconds ?? durationSec);
     }
   }
 
@@ -71,6 +143,10 @@ export function GuidedSessionScreen() {
     remainingSec % 60
   ).padStart(2, "0")}`;
 
+  const audioSrc = arm === "A"
+    ? (activeAudio ? resolveAudioUrl(activeAudio.audioUrl) : "")
+    : "";
+
   return (
     <div className="page page-center">
       <div className="brand">Avyakt Ehsaas</div>
@@ -78,7 +154,7 @@ export function GuidedSessionScreen() {
         <>
           <h1>3 minutes of guided reset</h1>
           <p className="text-muted">
-            Find a comfortable position. Headphones help.
+            {activeAudio ? activeAudio.title : "Find a comfortable position. Headphones help."}
           </p>
         </>
       ) : (
@@ -92,15 +168,24 @@ export function GuidedSessionScreen() {
 
       {arm === "A" && (
         <>
-          <audio
-            ref={audioRef}
-            preload="auto"
-            // Placeholder — record & host per PDF §6.1 (Pre-Meeting Reset).
-            src="/audio/guided-reset.mp3"
-          />
-          <button className="btn mt-16" onClick={togglePlay}>
-            {audioStarted && !audioRef.current?.paused ? "Pause" : "Play"}
-          </button>
+          {playlistLoadError && (
+            <p className="text-muted" style={{ fontSize: "0.85rem" }}>
+              No active playlist found — timer-only mode.
+            </p>
+          )}
+          {audioSrc && (
+            <>
+              <audio
+                ref={audioRef}
+                preload="auto"
+                src={audioSrc}
+                onEnded={handleAudioEnded}
+              />
+              <button className="btn mt-16" onClick={togglePlay}>
+                {audioStarted && !audioRef.current?.paused ? "Pause" : "Play"}
+              </button>
+            </>
+          )}
         </>
       )}
 

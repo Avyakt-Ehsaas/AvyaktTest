@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, Legend, Cell,
 } from "recharts";
 import { adminApi } from "../adminApi";
-import type { AnalyticsData, DiagnosticStat } from "../adminTypes";
+import type { AnalyticsData, DiagnosticStat, PlaylistAnalyticsData } from "../adminTypes";
 
 const SAGE = "#5C7A5C";
 const TEAL = "#4A7A8A";
@@ -66,12 +66,13 @@ export function AnalyticsTab({ onUnauth }: Props) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playlistData, setPlaylistData] = useState<PlaylistAnalyticsData | null>(null);
 
   function load() {
     setLoading(true);
     setError(null);
-    adminApi.analytics()
-      .then(setData)
+    Promise.all([adminApi.analytics(), adminApi.playlistAnalytics()])
+      .then(([analytics, playlists]) => { setData(analytics); setPlaylistData(playlists); })
       .catch((e) => { if (e.message === "UNAUTHORIZED") onUnauth(); else setError(e.message); })
       .finally(() => setLoading(false));
   }
@@ -288,6 +289,75 @@ export function AnalyticsTab({ onUnauth }: Props) {
         <DiagnosticChart data={data.diagnostics.diagnosticFocus} label="Focus Difficulty vs RT" />
         <DiagnosticChart data={data.diagnostics.diagnosticStress} label="Stress Level vs RT" />
       </div>
+
+      {/* ── Playlist & Audio engagement ── */}
+      <SectionTitle>Playlist & Audio Engagement</SectionTitle>
+      {!playlistData || (playlistData.playlistStats.length === 0 && playlistData.audioStats.length === 0) ? (
+        <div className="admin-loading" style={{ minHeight: 80 }}>No playlist plays recorded yet — plays are tracked when participants use the meditation library or guided session.</div>
+      ) : (
+        <>
+          <div className="admin-chart-grid" style={{ marginBottom: 20 }}>
+            {playlistData.playlistStats.length > 0 && (
+              <ChartCard title="Plays by Playlist" subtitle="Total times any audio in a playlist was started">
+                <BarChart data={playlistData.playlistStats} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8EDE4" vertical={false} />
+                  <XAxis dataKey="title" tick={{ fontSize: 10, fill: "#889" }} tickLine={false} axisLine={false}
+                    tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 14) + "…" : v} />
+                  <YAxis tick={{ fontSize: 11, fill: "#889" }} allowDecimals={false} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v, n) => [v, n === "totalPlays" ? "plays" : n === "completions" ? "completions" : String(n)]} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="totalPlays" name="Total Plays" fill={SAGE} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="completions" name="Completions" fill={TEAL} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartCard>
+            )}
+
+            {playlistData.audioStats.length > 0 && (
+              <ChartCard title="Top Audios Played" subtitle="Top 20 individual audio tracks by play count"
+                height={Math.max(200, playlistData.audioStats.length * 32)}>
+                <BarChart layout="vertical" data={playlistData.audioStats} margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8EDE4" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: "#889" }} allowDecimals={false} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="title" tick={{ fontSize: 10, fill: "#556" }} tickLine={false} axisLine={false} width={110}
+                    tickFormatter={(v: string) => v.length > 16 ? v.slice(0, 16) + "…" : v} />
+                  <Tooltip contentStyle={tooltipStyle}
+                    formatter={(v, n) => [v, n === "totalPlays" ? "plays" : "completions"]}
+                    labelFormatter={(label) => {
+                      const row = playlistData.audioStats.find((a) => a.title === label);
+                      return row ? `${label} · ${row.playlistTitle}` : label;
+                    }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="totalPlays" name="Total Plays" fill={SAGE} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="completions" name="Completions" fill={TEAL} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartCard>
+            )}
+          </div>
+
+          {/* Playlist summary table */}
+          <div className="admin-table-wrap" style={{ marginBottom: 32 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Playlist</th><th>Total Plays</th><th>Completions</th><th>Completion Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playlistData.playlistStats.map((p) => (
+                  <tr key={p.playlistId}>
+                    <td><strong>{p.title}</strong></td>
+                    <td>{p.totalPlays}</td>
+                    <td>{p.completions}</td>
+                    <td className={p.completionRate != null && p.completionRate >= 50 ? "impr-pos" : "impr-zero"}>
+                      {p.completionRate != null ? `${p.completionRate}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
